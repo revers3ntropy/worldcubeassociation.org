@@ -1845,7 +1845,8 @@ class Competition < ApplicationRecord
            "competitor_limit"],
     methods: ["url", "website", "short_name", "city", "venue_address",
               "venue_details", "latitude_degrees", "longitude_degrees",
-              "country_iso2", "event_ids"],
+              "country_iso2", "event_ids", "events_wcif", "schedule_wcif",
+             "country_zones"],
     include: ["delegates", "trainee_delegates", "organizers"],
   }.freeze
 

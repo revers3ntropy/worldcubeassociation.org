@@ -281,6 +281,19 @@ class CompetitionsController < ApplicationController
     @competition = competition_from_params(includes: [competition_events: { rounds: { competition_event: [:event] } }, competition_venues: { venue_rooms: { schedule_activities: [:child_activities] } }])
   end
 
+  def edit_schedule_
+    @competition = competition_from_params(includes:
+                                             [competition_events: {
+                                                rounds: { competition_event: [:event] },
+                                              },
+                                              competition_venues: {
+                                                venue_rooms:
+                                                  {
+                                                    schedule_activities: [:child_activities],
+                                                  },
+                                              }])
+  end
+
   def get_nearby_competitions(competition)
     nearby_competitions = competition.nearby_competitions_warning[0, 10]
     nearby_competitions.select!(&:confirmed?) unless current_user.can_view_hidden_competitions?
