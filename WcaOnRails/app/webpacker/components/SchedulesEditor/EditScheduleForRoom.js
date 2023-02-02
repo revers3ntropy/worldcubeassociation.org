@@ -121,8 +121,8 @@ export default class EditScheduleForRoom extends React.Component {
           <DropArea />
         </Col>
         <Col xs={12}>
-          The timezone for this room is
-          {friendlyTimezoneName(venueWcif.timezone)}
+          The timezone for this room is &nbsp;
+          <b>{friendlyTimezoneName(venueWcif.timezone)}</b>
           .
         </Col>
         <Col xs={12} id="schedule-calendar" />

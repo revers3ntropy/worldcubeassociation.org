@@ -17,25 +17,9 @@
       <%= link_to "here", edit_competition_path(@competition, anchor: "competition_countryId")%>.
     </div>
   <% else %>
-    <div id="edit-schedule-area"></div>
-    <script>
-      $(function() {
-        competition_info = {
-          id: <%= @competition.id.to_json.html_safe %>,
-          venue: <%= @competition.venue.to_json.html_safe %>,
-          venueDetails: <%= @competition.venueDetails.to_json.html_safe %>,
-          countryIso2: <%= @competition.country.iso2.to_json.html_safe %>,
-          lat: <%= @competition.latitude.to_json.html_safe %>,
-          lng: <%= @competition.longitude.to_json.html_safe %>,
-          countryZones: <%= @competition.country_zones.to_json.html_safe %>,
-          scheduleWcif: <%= @competition.schedule_wcif.to_json.html_safe %>,
-          eventsWcif: <%= @competition.events_wcif.to_json.html_safe %>,
-        }
-        window.wca.initializeScheduleForm(
-          competition_info,
-          <%= I18n.locale.to_json.html_safe %>
-        );
-      });
-    </script>
+    <%= react_component('EditSchedule', {
+      competitionInfo: @competition,
+      locale: I18n.locale
+    }) %>
   <% end %>
 <% end %>

@@ -15,6 +15,7 @@ import {
 import ActivityPicker from './ActivityPicker';
 import { schedulesEditPanelSelector } from '../../lib/helpers/edit-schedule';
 import EditScheduleForRoom from './EditScheduleForRoom';
+import '../../stylesheets/edit_schedule.scss';
 
 /* eslint react/prop-types: "off" */
 

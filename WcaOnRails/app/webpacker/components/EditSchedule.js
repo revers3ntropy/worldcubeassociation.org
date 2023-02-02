@@ -1,26 +1,21 @@
 import React from 'react';
-import cn from 'classnames';
 import _ from 'lodash';
 import {
-  Alert,
-  Col,
-  Panel,
-  PanelGroup,
-  Row,
-  Clearfix,
+  Alert, Clearfix, Col, Panel, PanelGroup, Row,
 } from 'react-bootstrap';
-
-import rootRender from '../lib/edit-schedule';
-import { saveWcif } from '../lib/utils/wcif';
-import EditVenue from './EditVenue';
+import cn from 'classnames';
+import { roomWcifFromId, saveWcif } from '../lib/utils/wcif';
 import SchedulesEditor from './SchedulesEditor';
-import { initElementsIds, newVenueId } from '../lib/utils/edit-schedule';
-
-/* eslint react/prop-types: "off" */
-/* eslint jsx-a11y/anchor-is-valid: "off" */
-/* eslint no-restricted-globals: "off" */
-/* eslint import/no-cycle: "off" */
-/* eslint no-alert: "off" */
+import EditVenue from './EditVenue';
+import { defaultDurationFromActivityCode, newActivityId, newVenueId } from '../lib/utils/edit-schedule';
+import {
+  calendarHandlers,
+  dataToFcEvent, fcEventToActivity,
+  momentToIso,
+  selectedEventInCalendar,
+  singleSelectEvent, singleSelectLastEvent,
+} from '../lib/utils/calendar';
+import { scheduleElementSelector } from '../lib/helpers/edit-schedule';
 
 function addVenueToSchedule(competitionInfo) {
   competitionInfo.scheduleWcif.venues.push({
@@ -34,139 +29,96 @@ function addVenueToSchedule(competitionInfo) {
   });
 }
 
-export default class EditSchedule extends React.Component {
-  constructor(props) {
-    super(props);
-    this.onUnload = this.onUnload.bind(this);
-    this.unsavedChanges = this.unsavedChanges.bind(this);
+// NOTE: while making this file pretty big, putting these here is the only
+// way I found to avoid a circular dependency.
+function handleEventModifiedInCalendar(reactElem, event) {
+  const room = roomWcifFromId(reactElem.props.scheduleWcif, reactElem.state.selectedRoom);
+  const activityIndex = _.findIndex(room.activities, { id: event.id });
+  if (activityIndex < 0) {
+    throw new Error("This is very very BAD, I couldn't find an activity matching the modified event!");
   }
+  const currentActivity = room.activities[activityIndex];
+  const updatedActivity = fcEventToActivity(event);
+  const activityToMoments = ({ startTime, endTime }) => [
+    window.moment(startTime),
+    window.moment(endTime),
+  ];
+  const [currentStart, currentEnd] = activityToMoments(currentActivity);
+  const [updatedStart, updatedEnd] = activityToMoments(updatedActivity);
+  /* Move and proportionally scale child activities. */
+  const lengthRate = updatedEnd.diff(updatedStart) / currentEnd.diff(currentStart);
+  updatedActivity.childActivities.forEach((child) => {
+    const childActivity = child;
+    const [childStart, childEnd] = activityToMoments(childActivity);
+    const updatedStartDiff = Math.floor(childStart.diff(currentStart) * lengthRate);
+    childActivity.startTime = updatedStart.clone().add(updatedStartDiff, 'ms').utc().format();
+    const updatedEndDiff = Math.floor(childEnd.diff(currentStart) * lengthRate);
+    childActivity.endTime = updatedStart.clone().add(updatedEndDiff, 'ms').utc().format();
+  });
+  room.activities[activityIndex] = updatedActivity;
+}
 
-  /* eslint camelcase: ["error", {allow: ["UNSAFE_componentWillMount"]}] */
-  UNSAFE_componentWillMount() {
-    const { competitionInfo } = this.props;
-    this.setState({ savedScheduleWcif: _.cloneDeep(competitionInfo.scheduleWcif) });
-    initElementsIds(competitionInfo.scheduleWcif.venues);
-  }
-
-  componentDidMount() {
-    window.wca.datetimepicker();
-    window.addEventListener('beforeunload', this.onUnload);
-  }
-
-  componentWillUnmount() {
-    window.removeEventListener('beforeunload', this.onUnload);
-  }
-
-  onUnload(e) {
-    // Prompt the user before letting them navigate away from this page with unsaved changes.
-    if (this.unsavedChanges()) {
-      const confirmationMessage = 'You have unsaved changes, are you sure you want to leave?';
-      e.returnValue = confirmationMessage;
-      return confirmationMessage;
-    }
+function handleRemoveEventFromCalendar(reactElem, event) {
+  // eslint-disable-next-line no-alert
+  if (!window.confirm(`Are you sure you want to remove ${event.title}`)) {
     return false;
   }
 
-  unsavedChanges() {
-    const { savedScheduleWcif } = this.state;
-    const { competitionInfo } = this.props;
-    return !_.isEqual(savedScheduleWcif, competitionInfo.scheduleWcif);
+  // Remove activityCode from the list used by the ActivityPicker
+  const newActivityCodeList = reactElem.state.usedActivityCodeList;
+  const activityCodeIndex = newActivityCodeList.indexOf(event.activityCode);
+  if (activityCodeIndex < 0) {
+    throw new Error(`No ${event.activityCode} in used activity codes: ${JSON.stringify(newActivityCodeList)}`);
   }
+  newActivityCodeList.splice(activityCodeIndex, 1);
+  const { scheduleWcif } = reactElem.props;
+  // Remove activity from the list used by the ActivityPicker
+  const room = roomWcifFromId(scheduleWcif, reactElem.state.selectedRoom);
+  _.remove(room.activities, { id: event.id });
 
-  render() {
-    const { competitionInfo, locale, setupCalendarHandlers } = this.props;
-    const { scheduleWcif } = competitionInfo;
-    const { saving } = this.state;
+  // We rootRender to display the "Please save your changes..." message
+  reactElem.setState({ usedActivityCodeList: newActivityCodeList });
 
-    const save = () => {
-      this.setState({ saving: true });
-      const onSuccess = () => this.setState({
-        savedScheduleWcif: _.cloneDeep(competitionInfo.scheduleWcif),
-        saving: false,
-      });
-      const onFailure = () => this.setState({ saving: false });
+  $(scheduleElementSelector).fullCalendar('removeEvents', event.id);
+  singleSelectLastEvent(scheduleWcif, reactElem.state.selectedRoom);
+  return true;
+}
 
-      saveWcif(competitionInfo.id, {
-        schedule: competitionInfo.scheduleWcif,
-      }, onSuccess, onFailure);
+function handleAddActivityToCalendar(reactElem, activityData, renderItOnCalendar) {
+  const currentEventSelected = selectedEventInCalendar();
+  const roomSelected = roomWcifFromId(reactElem.props.scheduleWcif, reactElem.state.selectedRoom);
+  if (roomSelected) {
+    const newActivity = {
+      id: activityData.id || newActivityId(),
+      name: activityData.name,
+      activityCode: activityData.activityCode,
+      childActivities: [],
     };
-
-    const actionsHandlers = {
-      addVenue: (e) => {
-        e.preventDefault();
-        addVenueToSchedule(competitionInfo);
-        rootRender();
-      },
-      removeVenue: (e, index) => {
-        e.preventDefault();
-        if (!confirm(`Are you sure you want to remove the venue "${scheduleWcif.venues[index].name}" and all the associated rooms and schedules?`)) {
-          return;
-        }
-        scheduleWcif.venues.splice(index, 1);
-        rootRender();
-      },
-    };
-
-    const isThereAnyRoom = scheduleWcif.venues.some((venue) => venue.rooms.length > 0);
-
-    const unsavedChanges = this.unsavedChanges() ? (
-      <UnsavedChangesAlert
-        actionHandler={save}
-        saving={saving}
-      />
-    ) : null;
-
-    return (
-      <div>
-        {unsavedChanges}
-        <Row>
-          <IntroductionMessage />
-          <Col xs={12}>
-            <PanelGroup accordion id="accordion-schedule" defaultActiveKey={isThereAnyRoom ? '2' : '1'}>
-              <Panel id="venues-edit-panel" bsStyle="info" eventKey="1">
-                <div id="accordion-schedule-heading-1" className="panel-heading heading-as-link" aria-controls="accordion-schedule-body-1" role="button" data-toggle="collapse" data-target="#accordion-schedule-body-1" data-parent="#accordion-schedule">
-                  <Panel.Title>
-                    Edit venues information
-                    {' '}
-                    <span className="collapse-indicator" />
-                  </Panel.Title>
-                </div>
-                <Panel.Body collapsible>
-                  <Row>
-                    <Col xs={12}>
-                      <p>Please add all your venues and rooms below:</p>
-                    </Col>
-                  </Row>
-                  <VenuesList
-                    venues={scheduleWcif.venues}
-                    actionsHandlers={actionsHandlers}
-                    competitionInfo={competitionInfo}
-                  />
-                </Panel.Body>
-              </Panel>
-              <Panel id="schedules-edit-panel" bsStyle="info" eventKey="2">
-                <div id="accordion-schedule-heading-2" className="panel-heading heading-as-link" aria-controls="accordion-schedule-body-2" role="button" data-toggle="collapse" data-target="#accordion-schedule-body-2" data-parent="#accordion-schedule">
-                  <Panel.Title>
-                    Edit schedules
-                    {' '}
-                    <span className="collapse-indicator" />
-                  </Panel.Title>
-                </div>
-                <Panel.Body id="schedules-edit-panel-body" collapsible>
-                  <SchedulesEditor
-                    scheduleWcif={scheduleWcif}
-                    eventsWcif={competitionInfo.eventsWcif}
-                    locale={locale}
-                    setupCalendarHandlers={setupCalendarHandlers}
-                  />
-                </Panel.Body>
-              </Panel>
-            </PanelGroup>
-          </Col>
-        </Row>
-        {unsavedChanges}
-      </div>
-    );
+    if (activityData.startTime && activityData.endTime) {
+      newActivity.startTime = activityData.startTime;
+      newActivity.endTime = activityData.endTime;
+    } else if (currentEventSelected) {
+      const newStart = currentEventSelected.end.clone();
+      newActivity.startTime = momentToIso(newStart);
+      const newEnd = newStart.add(defaultDurationFromActivityCode(newActivity.activityCode), 'm');
+      newActivity.endTime = momentToIso(newEnd);
+    } else {
+      // Do nothing, user cliked an event without any event selected.
+      return;
+    }
+    roomSelected.activities.push(newActivity);
+    if (renderItOnCalendar) {
+      const fcEvent = dataToFcEvent(newActivity);
+      singleSelectEvent(fcEvent);
+      $(scheduleElementSelector).fullCalendar('renderEvent', fcEvent);
+    }
+    // update list of activityCode used, and rootRender to display the save message
+    reactElem.setState({
+      usedActivityCodeList: [
+        ...reactElem.state.usedActivityCodeList,
+        newActivity.activityCode,
+      ],
+    });
   }
 }
 
@@ -219,7 +171,11 @@ function VenuesList({ venues, actionsHandlers, competitionInfo }) {
             <EditVenue
               venueWcif={venueWcif}
               removeVenueAction={(e) => actionsHandlers.removeVenue(e, index)}
-              competitionInfo={competitionInfo}
+              competitionInfo={{
+                ...competitionInfo,
+                countryZones: competitionInfo.country_zones,
+                venueDetails: competitionInfo.venue_details,
+              }}
             />
           </Col>
           {/*
@@ -241,7 +197,117 @@ function VenuesList({ venues, actionsHandlers, competitionInfo }) {
 function NewVenue({ actionHandler }) {
   return (
     <div className="panel-venue">
+      {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
       <a href="#" className="btn btn-success new-venue-link" onClick={actionHandler}>Add a venue</a>
+    </div>
+  );
+}
+
+export default function EditSchedule({
+  competitionInfo,
+  locale,
+}) {
+  const { schedule_wcif: scheduleWcif } = competitionInfo;
+  const [state, setState] = React.useState({
+    savedScheduleWcif: _.cloneDeep(competitionInfo.scheduleWcif),
+  });
+
+  function unsavedChanges() {
+    return !_.isEqual(state.savedScheduleWcif, scheduleWcif);
+  }
+
+  function save() {
+    setState({ saving: true });
+    const onSuccess = () => setState({
+      savedScheduleWcif: _.cloneDeep(competitionInfo.schedule_wcif),
+      saving: false,
+    });
+    const onFailure = () => setState({ saving: false });
+
+    saveWcif(competitionInfo.id, {
+      schedule: competitionInfo.schedule_wcif,
+    }, onSuccess, onFailure);
+  }
+
+  const actionsHandlers = {
+    addVenue: (domEvent) => {
+      domEvent.preventDefault();
+      addVenueToSchedule(competitionInfo);
+    },
+    removeVenue: (domEvent, index) => {
+      domEvent.preventDefault();
+      // eslint-disable-next-line no-alert
+      if (!window.confirm(`Are you sure you want to remove the venue "${scheduleWcif.venues[index].name}" and all the associated rooms and schedules?`)) {
+        return;
+      }
+      scheduleWcif.venues.splice(index, 1);
+    },
+  };
+
+  const isThereAnyRoom = scheduleWcif.venues.some((venue) => venue.rooms.length > 0);
+
+  const unsavedChangesAlert = unsavedChanges() ? (
+    <UnsavedChangesAlert
+      actionHandler={save}
+      saving={state.saving}
+    />
+  ) : null;
+
+  function setupCalendarHandlers(editor) {
+    calendarHandlers.addActivityToCalendar = _.partial(handleAddActivityToCalendar, editor);
+    calendarHandlers.eventModifiedInCalendar = _.partial(handleEventModifiedInCalendar, editor);
+    calendarHandlers.removeEventFromCalendar = _.partial(handleRemoveEventFromCalendar, editor);
+  }
+
+  return (
+    <div id="edit-schedule-area">
+      {unsavedChangesAlert}
+      <Row>
+        <IntroductionMessage />
+        <Col xs={12}>
+          <PanelGroup accordion id="accordion-schedule" defaultActiveKey={isThereAnyRoom ? '2' : '1'}>
+            <Panel id="venues-edit-panel" bsStyle="info" eventKey="1">
+              <div id="accordion-schedule-heading-1" className="panel-heading heading-as-link" aria-controls="accordion-schedule-body-1" role="button" data-toggle="collapse" data-target="#accordion-schedule-body-1" data-parent="#accordion-schedule">
+                <Panel.Title>
+                  Edit venues information
+                  {' '}
+                  <span className="collapse-indicator" />
+                </Panel.Title>
+              </div>
+              <Panel.Body collapsible>
+                <Row>
+                  <Col xs={12}>
+                    <p>Please add all your venues and rooms below:</p>
+                  </Col>
+                </Row>
+                <VenuesList
+                  venues={scheduleWcif.venues}
+                  actionsHandlers={actionsHandlers}
+                  competitionInfo={competitionInfo}
+                />
+              </Panel.Body>
+            </Panel>
+            <Panel id="schedules-edit-panel" bsStyle="info" eventKey="2">
+              <div id="accordion-schedule-heading-2" className="panel-heading heading-as-link" aria-controls="accordion-schedule-body-2" role="button" data-toggle="collapse" data-target="#accordion-schedule-body-2" data-parent="#accordion-schedule">
+                <Panel.Title>
+                  Edit schedules
+                  {' '}
+                  <span className="collapse-indicator" />
+                </Panel.Title>
+              </div>
+              <Panel.Body id="schedules-edit-panel-body" collapsible>
+                <SchedulesEditor
+                  scheduleWcif={scheduleWcif}
+                  eventsWcif={competitionInfo.events_wcif}
+                  locale={locale}
+                  setupCalendarHandlers={setupCalendarHandlers}
+                />
+              </Panel.Body>
+            </Panel>
+          </PanelGroup>
+        </Col>
+      </Row>
+      {unsavedChangesAlert}
     </div>
   );
 }

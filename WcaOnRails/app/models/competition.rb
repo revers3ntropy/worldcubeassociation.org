@@ -14,9 +14,7 @@ class Competition < ApplicationRecord
   has_many :competitors, -> { distinct }, through: :results, source: :person
   has_many :competitor_users, -> { distinct }, through: :competitors, source: :user
   has_many :competition_delegates, dependent: :delete_all
-  has_many :competition_trainee_delegates, dependent: :delete_all
   has_many :delegates, through: :competition_delegates
-  has_many :trainee_delegates, through: :competition_trainee_delegates
   has_many :competition_organizers, dependent: :delete_all
   has_many :organizers, through: :competition_organizers
   has_many :media, class_name: "CompetitionMedium", foreign_key: "competitionId", dependent: :delete_all
@@ -57,22 +55,21 @@ class Competition < ApplicationRecord
       "Competitions.name like :search_term or
       Competitions.cityName like :search_term",
       search_term: "%#{search_term}%",
-    )
+      )
   }
   scope :has_event, lambda { |event_id|
     joins(
       "join competition_events ce#{event_id} ON ce#{event_id}.competition_id = Competitions.id
       join Events e#{event_id} ON e#{event_id}.id = ce#{event_id}.event_id",
-    ).where("e#{event_id}.id = :event_id", event_id: event_id)
+      ).where("e#{event_id}.id = :event_id", event_id: event_id)
   }
   scope :managed_by, lambda { |user_id|
     joins("LEFT JOIN competition_organizers ON competition_organizers.competition_id = Competitions.id")
       .joins("LEFT JOIN competition_delegates ON competition_delegates.competition_id = Competitions.id")
-      .joins("LEFT JOIN competition_trainee_delegates ON competition_trainee_delegates.competition_id = Competitions.id")
       .where(
-        "delegate_id = :user_id OR organizer_id = :user_id OR trainee_delegate_id = :user_id",
+        "delegate_id = :user_id OR organizer_id = :user_id",
         user_id: user_id,
-      ).group(:id)
+        ).group(:id)
   }
   scope :order_by_date, -> { order(:start_date, :end_date) }
   scope :order_by_announcement_date, -> { order(announced_at: :desc) }
@@ -178,14 +175,14 @@ class Competition < ApplicationRecord
   validates_numericality_of :guests_per_registration_limit, only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: MAX_GUEST_LIMIT, allow_blank: true, if: :some_guests_allowed?
   validates_numericality_of :events_per_registration_limit, only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: :number_of_events, allow_blank: true, if: :event_restrictions?
   validates :id, presence: true, uniqueness: { case_sensitive: false }, length: { maximum: MAX_ID_LENGTH },
-                 format: { with: VALID_ID_RE }, if: :name_valid_or_updating?
+            format: { with: VALID_ID_RE }, if: :name_valid_or_updating?
   private def name_valid_or_updating?
     self.persisted? || (name.length <= MAX_NAME_LENGTH && name =~ VALID_NAME_RE)
   end
   validates :name, length: { maximum: MAX_NAME_LENGTH },
-                   format: { with: VALID_NAME_RE, message: proc { I18n.t('competitions.errors.invalid_name_message') } }
+            format: { with: VALID_NAME_RE, message: proc { I18n.t('competitions.errors.invalid_name_message') } }
   validates :cellName, length: { maximum: MAX_CELL_NAME_LENGTH },
-                       format: { with: VALID_NAME_RE, message: proc { I18n.t('competitions.errors.invalid_name_message') } }, if: :name_valid_or_updating?
+            format: { with: VALID_NAME_RE, message: proc { I18n.t('competitions.errors.invalid_name_message') } }, if: :name_valid_or_updating?
   validates :venue, format: { with: PATTERN_TEXT_WITH_LINKS_RE }
   validates :external_website, format: { with: URL_RE }, allow_blank: true
   validates :external_registration_page, presence: true, format: { with: URL_RE }, if: :external_registration_page_required?
@@ -365,8 +362,8 @@ class Competition < ApplicationRecord
 
   validate :must_have_at_least_one_delegate, if: :confirmed_or_visible?
   def must_have_at_least_one_delegate
-    if delegate_ids.empty?
-      errors.add(:delegate_ids, I18n.t('competitions.errors.must_contain_delegate'))
+    if staff_delegate_ids.empty?
+      errors.add(:staff_delegate_ids, I18n.t('competitions.errors.must_contain_delegate'))
     end
   end
 
@@ -399,8 +396,9 @@ class Competition < ApplicationRecord
   # this validation.
   validate :delegates_must_be_delegates, unless: :is_probably_over?
   def delegates_must_be_delegates
-    if !self.delegates.all?(&:any_kind_of_delegate?)
-      errors.add(:delegate_ids, I18n.t('competitions.errors.not_all_delegates'))
+    unless self.delegates.all?(&:any_kind_of_delegate?)
+      errors.add(:staff_delegate_ids, I18n.t('competitions.errors.not_all_delegates'))
+      errors.add(:trainee_delegate_ids, I18n.t('competitions.errors.not_all_delegates'))
     end
   end
 
@@ -548,34 +546,31 @@ class Competition < ApplicationRecord
       Competition.reflections.each_key do |association_name|
         case association_name
         when 'registrations',
-             'results',
-             'competitors',
-             'competitor_users',
-             'delegate_report',
-             'competition_delegates',
-             'competition_trainee_delegates',
-             'competition_events',
-             'competition_organizers',
-             'competition_venues',
-             'media',
-             'scrambles',
-             'country',
-             'continent',
-             'championships',
-             'rounds',
-             'uploaded_jsons',
-             'wcif_extensions',
-             'bookmarked_competitions',
-             'bookmarked_users',
-             'competition_series',
-             'series_competitions'
+          'results',
+          'competitors',
+          'competitor_users',
+          'delegate_report',
+          'competition_delegates',
+          'competition_events',
+          'competition_organizers',
+          'competition_venues',
+          'media',
+          'scrambles',
+          'country',
+          'continent',
+          'championships',
+          'rounds',
+          'uploaded_jsons',
+          'wcif_extensions',
+          'bookmarked_competitions',
+          'bookmarked_users',
+          'competition_series',
+          'series_competitions'
           # Do nothing as they shouldn't be cloned.
         when 'organizers'
           clone.organizers = organizers
         when 'delegates'
           clone.delegates = delegates
-        when 'trainee_delegates'
-          clone.trainee_delegates = trainee_delegates
         when 'events'
           clone.events = events
         when 'tabs'
@@ -630,9 +625,9 @@ class Competition < ApplicationRecord
     end
   end
 
-  attr_writer :delegate_ids, :organizer_ids, :trainee_delegate_ids
-  def delegate_ids
-    @delegate_ids || delegates.map(&:id).join(",")
+  attr_writer :staff_delegate_ids, :organizer_ids, :trainee_delegate_ids
+  def staff_delegate_ids
+    @staff_delegate_ids || staff_delegates.map(&:id).join(",")
   end
 
   def organizer_ids
@@ -652,20 +647,34 @@ class Competition < ApplicationRecord
     # CompetitionOrganizer and CompetitionDelegate rows rather than creating new ones.
     # We'll fix their competition_id below in update_foreign_keys.
     with_old_id do
-      if @delegate_ids
-        self.delegates = @delegate_ids.split(",").map { |id| User.find(id) }
+      if @staff_delegate_ids || @trainee_delegate_ids
+        self.delegates ||= []
+
+        if @staff_delegate_ids
+          unpacked_staff_delegates = @staff_delegate_ids.split(",").map { |id| User.find(id) }
+
+          # we overwrite staff_delegates, which means that we _keep_ existing trainee_delegates.
+          self.delegates = self.trainee_delegates | unpacked_staff_delegates
+        end
+        if @trainee_delegate_ids
+          unpacked_trainee_delegates = @trainee_delegate_ids.split(",").map { |id| User.find(id) }
+
+          # we overwrite trainee_delegates, which means that we _keep_ existing staff_delegates.
+          self.delegates = self.staff_delegates | unpacked_trainee_delegates
+        end
       end
       if @organizer_ids
         self.organizers = @organizer_ids.split(",").map { |id| User.find(id) }
       end
-      if @trainee_delegate_ids
-        self.trainee_delegates = @trainee_delegate_ids.split(",").map { |id| User.find(id) }
-      end
     end
   end
 
-  def all_delegates
-    delegates + trainee_delegates
+  def staff_delegates
+    delegates.select(&:staff_delegate?)
+  end
+
+  def trainee_delegates
+    delegates.select(&:trainee_delegate?)
   end
 
   def has_defined_dates?
@@ -689,7 +698,6 @@ class Competition < ApplicationRecord
   def remove_non_existent_organizers_and_delegates
     CompetitionOrganizer.where(competition_id: id).where.not(organizer_id: organizers.map(&:id)).delete_all
     CompetitionDelegate.where(competition_id: id).where.not(delegate_id: delegates.map(&:id)).delete_all
-    CompetitionTraineeDelegate.where(competition_id: id).where.not(trainee_delegate_id: trainee_delegates.map(&:id)).delete_all
   end
 
   # We setup an alias here to be able to take advantage of `includes(:delegate_report)` on a competition,
@@ -751,7 +759,8 @@ class Competition < ApplicationRecord
     if editing_user_id
       editing_user = User.find(editing_user_id)
       unless editing_user.can_manage_competition?(self)
-        errors.add(:delegate_ids, "You cannot demote yourself")
+        errors.add(:staff_delegate_ids, "You cannot demote yourself")
+        errors.add(:trainee_delegate_ids, "You cannot demote yourself")
         errors.add(:organizer_ids, "You cannot demote yourself")
       end
     end
@@ -792,16 +801,12 @@ class Competition < ApplicationRecord
   end
 
   def managers
-    (organizers + delegates + trainee_delegates).uniq
+    (organizers + delegates).uniq
   end
 
   def receiving_registration_emails?(user_id)
     competition_delegate = competition_delegates.find_by_delegate_id(user_id)
     if competition_delegate&.receive_registration_emails
-      return true
-    end
-    competition_trainee_delegate = competition_trainee_delegates.find_by_trainee_delegate_id(user_id)
-    if competition_trainee_delegate&.receive_registration_emails
       return true
     end
     competition_organizer = competition_organizers.find_by_organizer_id(user_id)
@@ -813,10 +818,6 @@ class Competition < ApplicationRecord
   end
 
   def can_receive_registration_emails?(user_id)
-    competition_trainee_delegate = competition_trainee_delegates.find_by_trainee_delegate_id(user_id)
-    if competition_trainee_delegate
-      return true
-    end
     competition_delegate = competition_delegates.find_by_delegate_id(user_id)
     if competition_delegate
       return true
@@ -950,9 +951,9 @@ class Competition < ApplicationRecord
     (
       confirmed? && created_at.present? && created_at > Date.new(2018, 7, 17) &&
 
-      # The different venues may have different entry fees. It's better for
-      # people to leave this blank than to set an incorrect value here.
-      country.present? && !country.multiple_countries?
+        # The different venues may have different entry fees. It's better for
+        # people to leave this blank than to set an incorrect value here.
+        country.present? && !country.multiple_countries?
     )
   end
 
@@ -972,9 +973,9 @@ class Competition < ApplicationRecord
     (
       on_the_spot_registration? &&
 
-      # The different venues may have different entry fees. It's better for
-      # people to leave this blank than to set an incorrect value here.
-      country.present? && !country.multiple_countries?
+        # The different venues may have different entry fees. It's better for
+        # people to leave this blank than to set an incorrect value here.
+        country.present? && !country.multiple_countries?
     )
   end
 
@@ -982,9 +983,9 @@ class Competition < ApplicationRecord
     (
       confirmed? && created_at.present? && created_at > Date.new(2018, 8, 22) &&
 
-      # The different venues may have different entry fees. It's better for
-      # people to leave this blank than to set an incorrect value here.
-      country.present? && !country.multiple_countries?
+        # The different venues may have different entry fees. It's better for
+        # people to leave this blank than to set an incorrect value here.
+        country.present? && !country.multiple_countries?
     )
   end
 
@@ -992,9 +993,9 @@ class Competition < ApplicationRecord
     (
       confirmed? && created_at.present? && created_at > Date.new(2018, 8, 22) &&
 
-      # The different venues may have different entry fees. It's better for
-      # people to leave this blank than to set an incorrect value here.
-      country.present? && !country.multiple_countries?
+        # The different venues may have different entry fees. It's better for
+        # people to leave this blank than to set an incorrect value here.
+        country.present? && !country.multiple_countries?
     )
   end
 
@@ -1155,8 +1156,8 @@ class Competition < ApplicationRecord
     6371 *
       Math.sqrt(
         (((c.longitude_radians - longitude_radians) * Math.cos((c.latitude_radians + latitude_radians)/2)) ** 2) +
-        ((c.latitude_radians - latitude_radians) ** 2),
-      )
+          ((c.latitude_radians - latitude_radians) ** 2),
+        )
   end
 
   def has_date?
@@ -1361,14 +1362,14 @@ class Competition < ApplicationRecord
   def events_with_podium_results
     light_results_from_relation(
       results.podium.order(:pos),
-    ).group_by(&:event)
-      .sort_by { |event, _results| event.rank }
+      ).group_by(&:event)
+       .sort_by { |event, _results| event.rank }
   end
 
   def winning_results
     light_results_from_relation(
       results.winners,
-    )
+      )
   end
 
   def person_ids_with_results
@@ -1376,17 +1377,17 @@ class Competition < ApplicationRecord
       .group_by(&:personId)
       .sort_by { |_personId, results| results.first.personName }
       .map do |personId, results|
-        results.sort_by! { |r| [r.event.rank, -r.round_type.rank] }
+      results.sort_by! { |r| [r.event.rank, -r.round_type.rank] }
 
-        # Mute (soften) each result that wasn't the competitor's last for the event.
-        last_event = nil
-        results.each do |result|
-          result.muted = (result.event == last_event)
-          last_event = result.event
-        end
-
-        [personId, results.sort_by { |r| [r.event.rank, -r.round_type.rank] }]
+      # Mute (soften) each result that wasn't the competitor's last for the event.
+      last_event = nil
+      results.each do |result|
+        result.muted = (result.event == last_event)
+        last_event = result.event
       end
+
+      [personId, results.sort_by { |r| [r.event.rank, -r.round_type.rank] }]
+    end
   end
 
   def events_with_round_types_with_results
@@ -1394,13 +1395,13 @@ class Competition < ApplicationRecord
       .group_by(&:event)
       .sort_by { |event, _results| event.rank }
       .map do |event, results_for_event|
-        round_types_with_results = results_for_event
+      round_types_with_results = results_for_event
                                    .group_by(&:round_type)
                                    .sort_by { |format, _results| format.rank }.reverse
                                    .map { |round_type, results| [round_type, results.sort_by { |r| [r.pos, r.personName] }] }
 
-        [event, round_types_with_results]
-      end
+      [event, round_types_with_results]
+    end
   end
 
   def ineligible_events(user)
@@ -1416,8 +1417,8 @@ class Competition < ApplicationRecord
     ActiveRecord::Base.connection
                       .execute(relation.to_sql)
                       .each(as: :hash).map do |r|
-                        LightResult.new(r)
-                      end
+      LightResult.new(r)
+    end
   end
 
   def started?
@@ -1425,7 +1426,7 @@ class Competition < ApplicationRecord
   end
 
   def organizers_or_delegates
-    self.organizers.empty? ? self.all_delegates : self.organizers
+    self.organizers.empty? ? self.delegates : self.organizers
   end
 
   SortedRegistration = Struct.new(:registration, :tied_previous, :pos, keyword_init: true)
@@ -1492,7 +1493,7 @@ class Competition < ApplicationRecord
         registration: registration,
         tied_previous: tied_previous,
         pos: pos,
-      )
+        )
       sorted_registrations << sorted_registration
       prev_sorted_registration = sorted_registration
     end
@@ -1500,7 +1501,7 @@ class Competition < ApplicationRecord
       sorted_registrations: sorted_registrations,
       sort_by: sort_by,
       sort_by_second: sort_by_second,
-    )
+      )
   end
 
   # For associated_events_picker
@@ -1566,16 +1567,16 @@ class Competition < ApplicationRecord
     if params[:sort]
       order = params[:sort].split(',')
                            .map do |part|
-                             reverse, field = part.match(/^(-)?(\w+)$/).captures
-                             [field.to_sym, reverse ? :desc : :asc]
-                           end
+        reverse, field = part.match(/^(-)?(\w+)$/).captures
+        [field.to_sym, reverse ? :desc : :asc]
+      end
                            .select { |field, _| orderable_fields.include?(field) }
                            .to_h
     else
       order = { start_date: :desc }
     end
 
-    competitions.includes(:delegates, :trainee_delegates, :organizers).order(**order)
+    competitions.includes(:delegates, :organizers).order(**order)
   end
 
   def all_activities
@@ -1621,9 +1622,9 @@ class Competition < ApplicationRecord
                                 .with_index(1)
                                 .select { |r, registrant_id| authorized || r.accepted? }
                                 .map do |r, registrant_id|
-                                  managers.delete(r.user)
-                                  r.user.to_wcif(self, r, registrant_id, authorized: authorized)
-                                end
+      managers.delete(r.user)
+      r.user.to_wcif(self, r, registrant_id, authorized: authorized)
+    end
     # NOTE: unregistered managers may generate N+1 queries on their personal bests,
     # but that's fine because there are very few of them!
     persons_wcif + managers.map { |m| m.to_wcif(self, authorized: authorized) }
@@ -1738,10 +1739,10 @@ class Competition < ApplicationRecord
   # Takes an array of partial Person WCIF and updates the fields that are not immutable.
   def update_persons_wcif!(wcif_persons, current_user)
     registrations = self.registrations.includes [
-      { assignments: [:schedule_activity] },
-      :user,
-      :registration_competition_events,
-    ]
+                                                  { assignments: [:schedule_activity] },
+                                                  :user,
+                                                  :registration_competition_events,
+                                                ]
     competition_activities = all_activities
     new_assignments = []
     removed_assignments = []
@@ -1770,11 +1771,11 @@ class Competition < ApplicationRecord
           # actually trigger a select for each validation.
           assignment ||= registration.assignments.build(
             schedule_activity: schedule_activity,
-          )
+            )
           assignment.assign_attributes(
             station_number: assignment_wcif["stationNumber"],
             assignment_code: assignment_wcif["assignmentCode"],
-          )
+            )
           if assignment.valid?
             local_assignments << assignment
           else
@@ -1796,14 +1797,14 @@ class Competition < ApplicationRecord
       raise WcaExceptions::BadApiParameter.new("Wrong number of days for competition")
     end
     competition_venues = self.competition_venues.includes [
-      {
-        venue_rooms: [
-          :wcif_extensions,
-          { schedule_activities: [{ child_activities: [:child_activities, :wcif_extensions] }, :wcif_extensions] },
-        ],
-      },
-      :wcif_extensions,
-    ]
+                                                            {
+                                                              venue_rooms: [
+                                                                :wcif_extensions,
+                                                                { schedule_activities: [{ child_activities: [:child_activities, :wcif_extensions] }, :wcif_extensions] },
+                                                              ],
+                                                            },
+                                                            :wcif_extensions,
+                                                          ]
     new_venues = wcif_schedule["venues"].map do |venue_wcif|
       # using this find instead of ActiveRecord's find_or_create_by avoid several queries
       # (despite having the association included :()
@@ -1860,8 +1861,8 @@ class Competition < ApplicationRecord
     methods: ["url", "website", "short_name", "city", "venue_address",
               "venue_details", "latitude_degrees", "longitude_degrees",
               "country_iso2", "event_ids", "events_wcif", "schedule_wcif",
-             "country_zones"],
-    include: ["delegates", "trainee_delegates", "organizers"],
+              "country_zones"],
+    include: ["delegates", "organizers"],
   }.freeze
 
   def serializable_hash(options = nil)
@@ -1873,16 +1874,18 @@ class Competition < ApplicationRecord
     # we want to change the existing behavior of our API which returns a string.
     json.merge!(
       class: self.class.to_s.downcase,
-    )
+      )
   end
 
   def to_ics
     cal = Icalendar::Calendar.new
-    cal.event do |e|
-      e.dtstart = Icalendar::Values::Date.new(self.start_date)
-      e.dtend = Icalendar::Values::Date.new(self.end_date)
-      e.summary = self.name
-      e.url = self.website
+    wcif_ids = rounds.to_h { |r| [r.wcif_id, r.to_string_map] }
+    all_activities.each do |activity|
+      event = Icalendar::Event.new
+      event.dtstart = Icalendar::Values::DateTime.new(activity.start_time)
+      event.dtend = Icalendar::Values::DateTime.new(activity.end_time)
+      event.summary = activity.localized_name(wcif_ids)
+      cal.add_event(event)
     end
     cal.publish
     cal
@@ -1917,8 +1920,8 @@ class Competition < ApplicationRecord
   after_update :clean_series_when_leaving
   private def clean_series_when_leaving
     if competition_series_id.nil? && # if we just processed an update to remove the competition series
-       (old_series_id = competition_series_id_previously_was) && # and we previously had an ID
-       (old_series = CompetitionSeries.find_by_id(old_series_id)) # and that series still exists
+      (old_series_id = competition_series_id_previously_was) && # and we previously had an ID
+      (old_series = CompetitionSeries.find_by_id(old_series_id)) # and that series still exists
       old_series.reload.destroy_if_orphaned # prompt it to check for orphaned state.
     end
   end

@@ -15,6 +15,7 @@ import {
 } from '../../lib/utils/calendar';
 import { schedulesEditPanelSelector } from '../../lib/helpers/edit-schedule';
 import { keyboardHandlers, editScheduleKeyboardHandler } from '../../lib/helpers/keyboard-handlers';
+import '../../stylesheets/edit_schedule.scss';
 
 const activityPickerElementSelector = '#activity-picker-panel';
 

@@ -1,3 +1,15 @@
+@import "variables";
+
+.input-sm,input[type="time"].input-sm,
+input[type="datetime-local"].input-sm,
+input[type="month"].input-sm {line-height:30px}
+
+.form-control-static.input-lg,
+.form-control-static.input-sm {padding-left:0;padding-right:0}
+.input-sm,.form-horizontal .form-group-sm .form-control {height:30px;padding:5px 10px;font-size:12px;line-height:1.5;border-radius:3px}
+select.input-sm{height:30px;line-height:30px}
+textarea.input-sm,select[multiple].input-sm{height:auto}
+
 #edit-schedule-area {
   .panel-primary {
     .collapse-indicator {
@@ -49,7 +61,7 @@
         margin-bottom: 1px;
       }
       .panel-heading {
-        @extend .text-center;
+        text-align: center;
       }
       .panel-body {
         padding: 5px;
