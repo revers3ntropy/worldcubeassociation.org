@@ -133,8 +133,8 @@ en:
       name: "Final"
       cellName: "Final"
     "g":
-      name: "Third round"
-      cellName: "Third round"
+      name: "Semi Final"
+      cellName: "Semi Final"
     "h":
       name: "Qualification round"
       cellName: "Qualification round"
@@ -351,8 +351,8 @@ en:
       championship:
         championship_type: "Championship type"
       competition_series:
-        wcif_id: "ID"
-        name: "Name"
+        wcif_id: "Series ID"
+        name: "Series name"
         short_name: "Series nickname"
         competition_ids: "All competitions"
       #context: a registration to a competition
@@ -2540,3 +2540,12 @@ en:
   footer:
     privacy: Privacy
     disclaimer: Disclaimer
+  #context: Key used when describing the API
+  api:
+    manage_oauth_html: 'Go to %{oauth_link} to manage your OAuth applications.'
+    token_request_intro: 'Here is an example, using curl, of obtaining an access token using an Application ID, Client Secret, your WCA email, and your password:'
+    user_email_placeholder: 'YOUR_EMAIL'
+    user_password_placeholder: 'YOUR_PASSWORD'
+    user_info_request_intro: 'An OAuth access token can be used, until it expires, to make authorized API requests. For example, to access information about your account:'
+    legal_tnoodle_api_header: 'Legal TNoodle version'
+
