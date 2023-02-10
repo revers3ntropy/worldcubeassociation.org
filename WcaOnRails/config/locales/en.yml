@@ -330,6 +330,7 @@ en:
         competition_events: "Events"
         enable_donations: "I want to enable donations additionally to collecting the registration fees"
         extra_registration_requirements: "Extra registration requirements"
+        force_comment_in_registration: "Force competitors to make a comment when registering"
         on_the_spot_registration: "On the spot registrations"
         on_the_spot_entry_fee_lowest_denomination: "On the spot base registration fee"
         allow_registration_edits: "Registration edits"
@@ -569,6 +570,7 @@ en:
         qualification_results_reason: "Please elaborate here why you would like to use qualification times. Please fill this out in English!"
         event_restrictions: ""
         event_restrictions_reason: "Please elaborate here why you would like to restrict certain event combinations. Please fill this out in English!"
+        force_comment_in_registration: ""
         main_event_id: "The winner of this event will be the winner of the competition."
         allow_registration_without_qualification: ""
         #context: when marked as championship
@@ -1122,6 +1124,7 @@ en:
       undelete_banned: "is a banned competitor and cannot be undeleted"
       series_more_than_one_accepted: "You can only be accepted for one Series competition at a time."
       can_only_register_for_qualified_events: "You cannot register for events you are not qualified for."
+      cannot_register_without_comment: "You must make a comment. Make sure to read the registration requirements what has to be included (e.g. in a FM simutaneous competition, which location you will compete at)."
     registration_info_people:
       #context: pluralization of "x first-timer(s)"
       newcomer:
@@ -2431,7 +2434,7 @@ en:
       content_html: "The competition must be announced at least 28 days before the start of the competition (see <a href='https://www.worldcubeassociation.org/documents/policies/external/Competition%20Requirements.pdf'>Competition Requirements</a>). However, this is rarely enough time. You should consider everything that will go into organizing your competition, and give yourself enough time to prepare. Also, the WCAT will need time to review your competition before it is announced. Consult with your delegate if you are unsure about how much time will be needed."
     paragraph4:
       title: "Proximity policy"
-      content1: "WCA competitions will be accepted if they are at least 100 km or 19 days away from any other competition. The WCAT should particularly review a proposed competition if there is another competition for which the distance between them is less than 100 km and the time between them is less than 19 days. A Delegate requesting approval for such a competition must provide further information on why the competition should still be accepted. Possible arguments that support such a competition being accepted include:"
+      content1: "WCA competitions will be accepted if they are at least 10 km or 5 days away from any other competition. The WCAT should particularly review a proposed competition if there is another competition for which the distance between them is less than 10 km and the time between them is less than 5 days. A Delegate requesting approval for such a competition must provide further information on why the competition should still be accepted. Possible arguments that support such a competition being accepted include:"
       olist1:
         '1': "The two competitions don't have events in common."
         '2': "The two competitions take place in different countries."
@@ -2442,7 +2445,7 @@ en:
           alist1:
             '1a': "Time frames when both are celebrated can’t overlap."
         '2':
-          content1: "If any location of such competitions is closer than 100 km to any other regular competition, then"
+          content1: "If any location of such competitions is closer than 10 km to any other regular competition, then"
           alist1:
             '2a': "both competitions should be at least 5 days apart, or"
             '2b': "the other competition must not have the 3x3x3 Fewest Moves event."
