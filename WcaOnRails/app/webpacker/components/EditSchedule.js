@@ -7,7 +7,10 @@ import cn from 'classnames';
 import { roomWcifFromId, saveWcif } from '../lib/utils/wcif';
 import SchedulesEditor from './SchedulesEditor';
 import EditVenue from './EditVenue';
-import { defaultDurationFromActivityCode, newActivityId, newVenueId } from '../lib/utils/edit-schedule';
+import {
+  defaultDurationFromActivityCode,
+  newActivityId,
+} from '../lib/utils/edit-schedule';
 import {
   calendarHandlers,
   dataToFcEvent, fcEventToActivity,
@@ -18,10 +21,10 @@ import {
 
 export const scheduleElementSelector = '#schedule-calendar';
 
-function defaultVenue(competitionInfo) {
+function newVenue(competitionInfo, id) {
   return {
-    id: newVenueId(),
-    name: competitionInfo.venue,
+    id,
+    name: 'New Venue',
     countryIso2: competitionInfo.countryIso2,
     latitudeMicrodegrees: competitionInfo.lat,
     longitudeMicrodegrees: competitionInfo.lng,
@@ -220,8 +223,6 @@ export default function EditSchedule({
   competitionInfo,
   locale,
 }) {
-  console.log('rendered EditSchedule');
-
   // initially the saved and unsaved schedule are the same
   const [scheduleWcif, setScheduleWcif] = useState(
     _.cloneDeep(competitionInfo.schedule_wcif),
@@ -229,6 +230,17 @@ export default function EditSchedule({
   const [savedScheduleWcif, setSavedScheduleWcif] = useState(
     _.cloneDeep(competitionInfo.schedule_wcif),
   );
+
+  const [competitionInfoState] = useState({
+    id: competitionInfo.id,
+    venue: competitionInfo.venue,
+    venueDetails: competitionInfo.venue_details,
+    countryIso2: competitionInfo.country_iso2,
+    countryZones: _.cloneDeep(competitionInfo.country_zones),
+    lat: competitionInfo.latitude_degrees,
+    lng: competitionInfo.longitude_degrees,
+    eventsWcif: _.cloneDeep(competitionInfo.events_wcif),
+  });
 
   const [saving, setSaving] = useState(false);
 
@@ -248,17 +260,25 @@ export default function EditSchedule({
       setSaving(false);
     }
 
-    await saveWcif(competitionInfo.id, {
+    await saveWcif(competitionInfoState.id, {
       schedule: scheduleWcif,
     }, onSuccess, onFailure);
+  }
+
+  function newVenueId() {
+    return (_.max(_.map(scheduleWcif.venues, 'id')) || 0) + 1;
   }
 
   const actionsHandlers = {
     addVenue(domEvent) {
       domEvent.preventDefault();
-      scheduleWcif.venues.push(defaultVenue(competitionInfo));
-      setScheduleWcif(scheduleWcif);
-      console.log('added venue');
+      setScheduleWcif({
+        ...scheduleWcif,
+        venues: [
+          ...scheduleWcif.venues,
+          newVenue(competitionInfoState, newVenueId()),
+        ],
+      });
     },
     removeVenue(domEvent, index) {
       domEvent.preventDefault();
