@@ -829,7 +829,7 @@ en:
       have_never_competed: "I have never competed in a WCA competition."
       let_us_know: "Please let us know if you have competed in a WCA competition before."
       welcome_back: "Welcome back! To create your WCA website account, we need to know the WCA ID under which you competed."
-      welcome: "Welcome! Before you can compete in your first WCA competition, we need some additional information for records keeping purposes. Please note that your birthdate will never be released without your permission.<br/>If you are signing up on someone else's behalf, please provide the details of the <strong>competitor</strong>."
+      welcome_html: "Welcome! Before you can compete in your first WCA competition, we need some additional information for records keeping purposes. Please note that your birthdate will never be released without your permission.<br/><br/>If you are signing up on someone else's behalf, please provide the details of the <strong>competitor</strong>."
   layouts:
     #context: This key belongs to the navigation bar
     navigation:
@@ -1054,6 +1054,8 @@ en:
       sign_out_of_devices: "Sign out of other devices"
       remove_avatar: "Remove avatar"
       remove_avatar_confirm: "Are you sure you want to delete your avatar?"
+      remove_avatar_confirm_button: "Confirm avatar removal"
+      remove_avatar_reason: "Please provide the reason for removal"
       guidelines: "Guidelines"
       avatar_guidelines:
         '1': "All avatars should be pictures of real persons."
@@ -1226,6 +1228,7 @@ en:
       waiting_list: "Waiting List"
       approved_registrations: "Approved registrations"
       deleted_registrations: "Deleted registrations"
+      non_competing: "Non-competing registrations"
       not_paid: "Not paid"
       registered:
         without_stripe: "Registered on"
@@ -1260,6 +1263,7 @@ en:
     greeting: "Hi, %{name}!"
     please_fix_profile_html: "In order to register for %{comp}, you must fix the following problems with your %{profile}:"
     registration_full: "The competitor limit for this competition is %{competitor_limit} and it has already been reached. If you register, your registration will be placed on a waiting list. It may not be approved unless a spot frees up."
+    registration_full_include_waiting_list: "The competitor limit for this competition is %{competitor_limit} and it may be filled. If you register, your registration will be placed on a waiting list. It may not be approved unless a spot frees up."
     can_register: "You can register for %{comp} below."
     check_registration_information: "Please check the information about registration to find out if you need to do something else, like paying a registration fee."
     have_registered: "You have submitted your registration for %{comp}. You can see your registration details below."

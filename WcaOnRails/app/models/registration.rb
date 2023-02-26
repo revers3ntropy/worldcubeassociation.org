@@ -1,9 +1,10 @@
 # frozen_string_literal: true
 
 class Registration < ApplicationRecord
-  scope :pending, -> { where(accepted_at: nil).where(deleted_at: nil) }
+  scope :pending, -> { where(accepted_at: nil).where(deleted_at: nil).where(is_competing: true) }
   scope :accepted, -> { where.not(accepted_at: nil).where(deleted_at: nil) }
   scope :deleted, -> { where.not(deleted_at: nil) }
+  scope :non_competing, -> { where(is_competing: false) }
   scope :not_deleted, -> { where(deleted_at: nil) }
   scope :with_payments, -> { joins(:registration_payments).distinct }
 
@@ -16,6 +17,7 @@ class Registration < ApplicationRecord
   has_many :competition_events, through: :registration_competition_events
   has_many :events, through: :competition_events
   has_many :assignments, dependent: :delete_all
+  has_many :wcif_extensions, as: :extendable, dependent: :delete_all
 
   serialize :roles, Array
 
@@ -51,7 +53,7 @@ class Registration < ApplicationRecord
   end
 
   def pending?
-    !accepted? && !deleted?
+    !accepted? && !deleted? && is_competing?
   end
 
   def self.status_from_timestamp(accepted_at, deleted_at)
@@ -69,7 +71,7 @@ class Registration < ApplicationRecord
   end
 
   def new_or_deleted?
-    new_record? || deleted?
+    new_record? || deleted? || !is_competing?
   end
 
   def name
@@ -218,19 +220,19 @@ class Registration < ApplicationRecord
     }
   end
 
+  def self.accepted_and_paid_pending_count
+    accepted.count + pending.with_payments.count
+  end
+
   # Only run the validations when creating the registration as we don't want user changes
   # to invalidate all the corresponding registrations (e.g. if the user gets banned).
   # Instead the validations should be placed such that they ensure that a user
   # change doesn't lead to an invalid state.
   validate :user_can_register_for_competition, on: :create
   private def user_can_register_for_competition
-    if user&.cannot_register_for_competition_reasons.present?
-      errors.add(:user_id, user.cannot_register_for_competition_reasons.to_sentence)
-    elsif user&.banned?
-      ban_end = user.current_team_members.select(:team == Team.banned).first.end_date
-      if !ban_end.present? || competition.start_date < ban_end
-        errors.add(:user_id, I18n.t('registrations.errors.banned_html').html_safe)
-      end
+    cannot_register_reasons = user&.cannot_register_for_competition_reasons(competition)
+    if cannot_register_reasons.present?
+      errors.add(:user_id, cannot_register_reasons.to_sentence)
     end
   end
 
@@ -243,7 +245,7 @@ class Registration < ApplicationRecord
 
   validate :must_register_for_gte_one_event
   private def must_register_for_gte_one_event
-    if registration_competition_events.reject(&:marked_for_destruction?).empty?
+    if is_competing && registration_competition_events.reject(&:marked_for_destruction?).empty?
       errors.add(:registration_competition_events, I18n.t('registrations.errors.must_register'))
     end
   end
