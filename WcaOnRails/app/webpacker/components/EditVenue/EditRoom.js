@@ -1,6 +1,5 @@
 import React from 'react';
 import { Icon } from 'semantic-ui-react';
-import rootRender from '../../lib/edit-schedule';
 
 /* eslint react/prop-types: "off" */
 /* eslint import/no-cycle: "off" */
@@ -16,13 +15,13 @@ export default class EditRoom extends React.Component {
   }
 
   render() {
-    const { roomWcif, removeRoomAction } = this.props;
+    const { roomWcif, removeRoomAction, updateWcif } = this.props;
     const { color } = this.state;
 
     const handleNameChange = (e) => {
       // Update parent's WCIF
       roomWcif.name = e.target.value;
-      rootRender();
+      updateWcif(roomWcif);
     };
 
     const handleColorChange = (e) => {
@@ -37,7 +36,7 @@ export default class EditRoom extends React.Component {
     const updateColorInWcif = (e) => {
       // Update parent's WCIF
       roomWcif.color = e.target.value;
-      rootRender();
+      updateWcif(roomWcif);
     };
 
     return (

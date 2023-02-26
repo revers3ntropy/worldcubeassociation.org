@@ -4,7 +4,6 @@ import {
   Button, Panel, Row, Col,
 } from 'react-bootstrap';
 import { Icon } from 'semantic-ui-react';
-import rootRender from '../../lib/edit-schedule';
 import { timezoneData, countries, defaultRoomColor } from '../../lib/wca-data.js.erb';
 import EditRoom from './EditRoom';
 import {
@@ -35,24 +34,27 @@ function addRoomToVenue(venueWcif, competitionInfo) {
 export default class EditVenue extends React.Component {
   render() {
     const {
-      venueWcif, removeVenueAction, competitionInfo,
+      venueWcif,
+      removeVenueAction,
+      competitionInfo,
+      updateWcif,
     } = this.props;
 
     const handleTimezoneChange = (e) => {
       const oldTZ = venueWcif.timezone;
       venueWcif.timezone = e.target.value;
       convertVenueActivitiesToVenueTimezone(oldTZ, venueWcif);
-      rootRender();
+      updateWcif(venueWcif);
     };
 
     const handleNameChange = (e) => {
       venueWcif.name = e.target.value;
-      rootRender();
+      updateWcif(venueWcif);
     };
 
     const handleCountryChange = (e) => {
       venueWcif.countryIso2 = e.target.value;
-      rootRender();
+      updateWcif(venueWcif);
     };
 
     const handlePositionChange = (event) => {
@@ -65,7 +67,7 @@ export default class EditVenue extends React.Component {
         || venueWcif.longitudeMicrodegrees !== newLng) {
         venueWcif.latitudeMicrodegrees = newLat;
         venueWcif.longitudeMicrodegrees = newLng;
-        rootRender();
+        updateWcif(venueWcif);
       }
     };
 
@@ -83,7 +85,7 @@ export default class EditVenue extends React.Component {
       addRoom: (e) => {
         e.preventDefault();
         addRoomToVenue(venueWcif, competitionInfo);
-        rootRender();
+        updateWcif(venueWcif);
       },
       removeRoom: (e, i) => {
         e.preventDefault();
@@ -91,8 +93,9 @@ export default class EditVenue extends React.Component {
           return;
         }
         venueWcif.rooms.splice(i, 1);
-        rootRender();
+        updateWcif(venueWcif);
       },
+      updateWcif,
     };
     return (
       <div>
@@ -204,6 +207,7 @@ function RoomsList({ venueWcif, actionsHandlers }) {
             roomWcif={roomWcif}
             key={roomWcif.id}
             removeRoomAction={(e) => actionsHandlers.removeRoom(e, index)}
+            updateWcif={actionsHandlers.updateWcif}
           />
         ))}
         <NewRoom newRoomAction={actionsHandlers.addRoom} />

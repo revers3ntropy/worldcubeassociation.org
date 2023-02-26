@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import _ from 'lodash';
 import {
   Alert, Clearfix, Col, Panel, PanelGroup, Row,
@@ -15,10 +15,11 @@ import {
   selectedEventInCalendar,
   singleSelectEvent, singleSelectLastEvent,
 } from '../lib/utils/calendar';
-import { scheduleElementSelector } from '../lib/helpers/edit-schedule';
 
-function addVenueToSchedule(competitionInfo) {
-  competitionInfo.scheduleWcif.venues.push({
+export const scheduleElementSelector = '#schedule-calendar';
+
+function defaultVenue(competitionInfo) {
+  return {
     id: newVenueId(),
     name: competitionInfo.venue,
     countryIso2: competitionInfo.countryIso2,
@@ -26,7 +27,7 @@ function addVenueToSchedule(competitionInfo) {
     longitudeMicrodegrees: competitionInfo.lng,
     timezone: '',
     rooms: [],
-  });
+  };
 }
 
 // NOTE: while making this file pretty big, putting these here is the only
@@ -162,6 +163,17 @@ function IntroductionMessage() {
   );
 }
 
+/**
+ * @param {*[]} venues
+ * @param {{
+ *     addVenue(e: DomEvent): void,
+ *     removeVenue(e: DomEvent, index: number): void,
+ *     updateWcif(wcif: *): *
+ * }} actionsHandlers
+ * @param {*} competitionInfo
+ * @returns {JSX.Element}
+ * @constructor
+ */
 function VenuesList({ venues, actionsHandlers, competitionInfo }) {
   return (
     <Row>
@@ -171,6 +183,7 @@ function VenuesList({ venues, actionsHandlers, competitionInfo }) {
             <EditVenue
               venueWcif={venueWcif}
               removeVenueAction={(e) => actionsHandlers.removeVenue(e, index)}
+              updateWcif={actionsHandlers.updateWcif}
               competitionInfo={{
                 ...competitionInfo,
                 countryZones: competitionInfo.country_zones,
@@ -207,40 +220,57 @@ export default function EditSchedule({
   competitionInfo,
   locale,
 }) {
-  const { schedule_wcif: scheduleWcif } = competitionInfo;
-  const [state, setState] = React.useState({
-    savedScheduleWcif: _.cloneDeep(competitionInfo.scheduleWcif),
-  });
+  console.log('rendered EditSchedule');
+
+  // initially the saved and unsaved schedule are the same
+  const [scheduleWcif, setScheduleWcif] = useState(
+    _.cloneDeep(competitionInfo.schedule_wcif),
+  );
+  const [savedScheduleWcif, setSavedScheduleWcif] = useState(
+    _.cloneDeep(competitionInfo.schedule_wcif),
+  );
+
+  const [saving, setSaving] = useState(false);
 
   function unsavedChanges() {
-    return !_.isEqual(state.savedScheduleWcif, scheduleWcif);
+    return !_.isEqual(savedScheduleWcif, scheduleWcif);
   }
 
-  function save() {
-    setState({ saving: true });
-    const onSuccess = () => setState({
-      savedScheduleWcif: _.cloneDeep(competitionInfo.schedule_wcif),
-      saving: false,
-    });
-    const onFailure = () => setState({ saving: false });
+  async function save() {
+    setSaving(true);
+    function onSuccess() {
+      setSaving(false);
+      setSavedScheduleWcif(
+        _.cloneDeep(scheduleWcif),
+      );
+    }
+    function onFailure() {
+      setSaving(false);
+    }
 
-    saveWcif(competitionInfo.id, {
-      schedule: competitionInfo.schedule_wcif,
+    await saveWcif(competitionInfo.id, {
+      schedule: scheduleWcif,
     }, onSuccess, onFailure);
   }
 
   const actionsHandlers = {
-    addVenue: (domEvent) => {
+    addVenue(domEvent) {
       domEvent.preventDefault();
-      addVenueToSchedule(competitionInfo);
+      scheduleWcif.venues.push(defaultVenue(competitionInfo));
+      setScheduleWcif(scheduleWcif);
+      console.log('added venue');
     },
-    removeVenue: (domEvent, index) => {
+    removeVenue(domEvent, index) {
       domEvent.preventDefault();
       // eslint-disable-next-line no-alert
       if (!window.confirm(`Are you sure you want to remove the venue "${scheduleWcif.venues[index].name}" and all the associated rooms and schedules?`)) {
         return;
       }
       scheduleWcif.venues.splice(index, 1);
+      setScheduleWcif(scheduleWcif);
+    },
+    updateWcif: (wcif) => {
+      setScheduleWcif(wcif);
     },
   };
 
@@ -248,8 +278,9 @@ export default function EditSchedule({
 
   const unsavedChangesAlert = unsavedChanges() ? (
     <UnsavedChangesAlert
+      // eslint-disable-next-line react/jsx-no-bind
       actionHandler={save}
-      saving={state.saving}
+      saving={saving}
     />
   ) : null;
 
@@ -288,7 +319,15 @@ export default function EditSchedule({
               </Panel.Body>
             </Panel>
             <Panel id="schedules-edit-panel" bsStyle="info" eventKey="2">
-              <div id="accordion-schedule-heading-2" className="panel-heading heading-as-link" aria-controls="accordion-schedule-body-2" role="button" data-toggle="collapse" data-target="#accordion-schedule-body-2" data-parent="#accordion-schedule">
+              <div
+                id="accordion-schedule-heading-2"
+                className="panel-heading heading-as-link"
+                aria-controls="accordion-schedule-body-2"
+                role="button"
+                data-toggle="collapse"
+                data-target="#accordion-schedule-body-2"
+                data-parent="#accordion-schedule"
+              >
                 <Panel.Title>
                   Edit schedules
                   {' '}
@@ -300,6 +339,7 @@ export default function EditSchedule({
                   scheduleWcif={scheduleWcif}
                   eventsWcif={competitionInfo.events_wcif}
                   locale={locale}
+                  // eslint-disable-next-line react/jsx-no-bind
                   setupCalendarHandlers={setupCalendarHandlers}
                 />
               </Panel.Body>

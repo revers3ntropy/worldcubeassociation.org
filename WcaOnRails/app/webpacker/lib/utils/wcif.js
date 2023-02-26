@@ -23,7 +23,7 @@ export function getAuthenticityToken() {
 }
 
 export function saveWcif(competitionId, data, onSuccess, onFailure) {
-  promiseSaveWcif(competitionId, data)
+  return promiseSaveWcif(competitionId, data)
     .then((response) => Promise.all([response, response.json()]))
     .then(([response, json]) => {
       if (!response.ok) {
