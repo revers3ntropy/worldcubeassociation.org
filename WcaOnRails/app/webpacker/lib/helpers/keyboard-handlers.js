@@ -6,7 +6,6 @@ import {
   selectedEventInCalendar,
   singleSelectEvent,
 } from '../utils/calendar';
-import { scheduleElementSelector, schedulesEditPanelSelector } from './edit-schedule';
 
 export const keyboardHandlers = [];
 

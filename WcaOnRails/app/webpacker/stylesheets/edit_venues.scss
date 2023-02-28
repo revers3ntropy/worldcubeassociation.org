@@ -1,0 +1,32 @@
+@import 'variables';
+
+.edit-venues {
+  &.cards {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: left;
+    gap: 0.6em;
+
+    .card {
+      width: 400px !important;
+    }
+  }
+}
+
+.edit-venue {
+  &.ui.card {
+    .header {
+      padding: 0.5em 0.5em 0.5em 1em;
+      background: #f5f5f5;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+  }
+
+  .leaflet-container {
+    // full width - (border + padding)
+    width: calc(400px - 2em - 6px);
+    height: 300px;
+  }
+}

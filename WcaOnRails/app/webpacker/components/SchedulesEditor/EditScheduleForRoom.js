@@ -19,10 +19,7 @@ import { ScheduleToolbar } from './ScheduleToolbar';
 import { CustomActivityModal, modeDetails } from './CustomActivity';
 import { DropArea } from './DropArea';
 import { ContextualMenu, contextualMenuSelector } from './ContextualMenu';
-import { scheduleElementSelector } from '../../lib/helpers/edit-schedule';
 import generateCalendar from '../../lib/helpers/fullcalendar';
-
-/* eslint react/prop-types: "off" */
 
 export default class EditScheduleForRoom extends React.Component {
   constructor(props) {

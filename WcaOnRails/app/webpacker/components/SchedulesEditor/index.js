@@ -13,11 +13,8 @@ import {
   setupConvertHandlers,
 } from '../../lib/utils/calendar';
 import ActivityPicker from './ActivityPicker';
-import { schedulesEditPanelSelector } from '../../lib/helpers/edit-schedule';
 import EditScheduleForRoom from './EditScheduleForRoom';
 import '../../stylesheets/edit_schedule.scss';
-
-/* eslint react/prop-types: "off" */
 
 export default class SchedulesEditor extends React.Component {
   constructor(props) {

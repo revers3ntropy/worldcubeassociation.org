@@ -1,6 +1,5 @@
 import React from 'react'
 import cn from 'classnames'
-import ReactDOM from 'react-dom'
 import _ from 'lodash';
 
 import { events, formats } from '../../lib/wca-data.js.erb'

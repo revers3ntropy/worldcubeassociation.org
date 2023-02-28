@@ -1,44 +1,4 @@
 import _ from 'lodash';
-import { parseActivityCode } from './wcif';
-
-export function toMicrodegrees(coord) {
-  return Math.trunc(parseFloat(coord) * 1e6);
-}
-
-export function toDegrees(coord) {
-  return coord / 1e6;
-}
-
-const currentElementsIds = {
-  venue: 0,
-  room: 0,
-  activity: 0,
-};
-
-export function initElementsIds(venues) {
-  // Explore the WCIF to get the highest ids.
-  const maxId = (objects) => _.max(_.map(objects, 'id')) || 0;
-  const rooms = _.flatMap(venues, 'rooms');
-  const activities = _.flatMap(rooms, 'activities');
-  currentElementsIds.venue = maxId(venues);
-  currentElementsIds.room = maxId(rooms);
-  currentElementsIds.activity = maxId(activities);
-}
-
-export function newVenueId() {
-  currentElementsIds.venue += 1;
-  return currentElementsIds.venue;
-}
-
-export function newRoomId() {
-  currentElementsIds.room += 1;
-  return currentElementsIds.room;
-}
-
-export function newActivityId() {
-  currentElementsIds.activity += 1;
-  return currentElementsIds.activity;
-}
 
 function withNestedActivities(activities) {
   if (activities.length === 0) return [];
@@ -63,18 +23,15 @@ export function convertVenueActivitiesToVenueTimezone(oldTZ, venueWcif) {
       // the *actual* time of the activity!
       // NOTE: we intentionally modify the object referenced by activity.
       /* eslint-disable-next-line */
-      activity.startTime = window.moment(activity.startTime).tz(oldTZ).tz(newTZ, true).format();
+      activity.startTime = window.moment(activity.startTime)
+        .tz(oldTZ)
+        .tz(newTZ, true)
+        .format();
       /* eslint-disable-next-line */
-      activity.endTime = window.moment(activity.endTime).tz(oldTZ).tz(newTZ, true).format();
+      activity.endTime = window.moment(activity.endTime)
+        .tz(oldTZ)
+        .tz(newTZ, true)
+        .format();
     });
   });
-}
-
-export function defaultDurationFromActivityCode(activityCode) {
-  const { eventId } = parseActivityCode(activityCode);
-  if (eventId === '333fm' || eventId === '333mbf'
-      || activityCode === 'other-lunch' || activityCode === 'other-awards') {
-    return 60;
-  }
-  return 30;
 }

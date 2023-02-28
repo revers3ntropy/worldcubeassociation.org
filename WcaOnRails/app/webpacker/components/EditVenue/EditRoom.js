@@ -1,69 +1,58 @@
 import React from 'react';
 import { Icon } from 'semantic-ui-react';
 
-/* eslint react/prop-types: "off" */
-/* eslint import/no-cycle: "off" */
-/* eslint jsx-a11y/control-has-associated-label: "off" */
-/* eslint jsx-a11y/anchor-is-valid: "off" */
-
-export default class EditRoom extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      color: props.roomWcif.color,
-    };
+/**
+ * @param {{ name: string, colour: string }} roomWcif
+ * @param {() => void} removeRoomAction
+ * @param {(wcif: { name: string, colour: string }) => void} updateWcif
+ * @returns {JSX.Element}
+ * @constructor
+ */
+export default function EditRoom({ roomWcif, removeRoomAction, updateWcif }) {
+  /**
+   * @param {Event} e
+   */
+  function handleNameChange(e) {
+    updateWcif({
+      ...roomWcif,
+      name: e.target.value,
+    });
   }
 
-  render() {
-    const { roomWcif, removeRoomAction, updateWcif } = this.props;
-    const { color } = this.state;
+  /**
+   * @param {Event} e
+   */
+  function handleColorChange(e) {
+    updateWcif({
+      ...roomWcif,
+      color: e.target.value,
+    });
+  }
 
-    const handleNameChange = (e) => {
-      // Update parent's WCIF
-      roomWcif.name = e.target.value;
-      updateWcif(roomWcif);
-    };
-
-    const handleColorChange = (e) => {
-      // This is fired everytime the color changes in the color picker, *not* only when unfocused.
-      // To avoid rootRendering everytime we first store the value in the state, and only update the
-      // WCIF when focus is lost.
-      this.setState({
-        color: e.target.value,
-      });
-    };
-
-    const updateColorInWcif = (e) => {
-      // Update parent's WCIF
-      roomWcif.color = e.target.value;
-      updateWcif(roomWcif);
-    };
-
-    return (
-      <div className="row room-row">
-        <div className="col-xs-9">
-          <input
-            type="text"
-            className="room-name-input form-control"
-            value={roomWcif.name}
-            onChange={handleNameChange}
-          />
-        </div>
-        <div className="col-xs-3">
-          <a href="#" onClick={removeRoomAction} className="btn btn-danger pull-right">
-            <Icon name="trash" />
-          </a>
-        </div>
-        <div className="col-xs-9 room-color-cell">
-          <input
-            type="color"
-            className="form-control"
-            value={color}
-            onChange={handleColorChange}
-            onBlur={updateColorInWcif}
-          />
-        </div>
+  return (
+    <div className="row room-row">
+      <div className="col-xs-9">
+        <input
+          type="text"
+          className="room-name-input form-control"
+          defaultValue={roomWcif.name}
+          onBlur={handleNameChange}
+        />
       </div>
-    );
-  }
+      <div className="col-xs-3">
+        {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+        <a href="#" onClick={removeRoomAction} className="btn btn-danger pull-right">
+          <Icon name="trash" />
+        </a>
+      </div>
+      <div className="col-xs-9 room-color-cell">
+        <input
+          type="color"
+          className="form-control"
+          defaultValue={roomWcif.color}
+          onBlur={handleColorChange}
+        />
+      </div>
+    </div>
+  );
 }

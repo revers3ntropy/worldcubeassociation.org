@@ -13,7 +13,6 @@ import {
   singleSelectEvent,
 } from '../utils/calendar';
 import { newActivityId, defaultDurationFromActivityCode } from '../utils/edit-schedule';
-import { scheduleElementSelector } from './edit-schedule';
 
 const fullCalendarHandlers = {
   onReceive: (ev) => {
@@ -91,8 +90,17 @@ const fullCalendarHandlers = {
 };
 
 export default function generate(eventFetcher, showModalAction, scheduleWcif, additionalOptions) {
-  const options = fullCalendarDefaultOptions(scheduleWcif.startDate, scheduleWcif.numberOfDays);
+  const options = fullCalendarDefaultOptions(
+    scheduleWcif.startDate,
+    scheduleWcif.numberOfDays,
+  );
+
   _.assign(options, additionalOptions);
+
+  console.log(scheduleWcif);
+  function newEventId() {
+    return (_.max(_.map(scheduleWcif.events, 'id')) || 0) + 1;
+  }
 
   const localOptions = {
     // Having only one view for edition enable us to have a "static" list of event
@@ -102,7 +110,7 @@ export default function generate(eventFetcher, showModalAction, scheduleWcif, ad
     droppable: true,
     selectable: true,
     dragRevertDuration: 0,
-    eventDataTransform: dataToFcEvent,
+    eventDataTransform: _.partialRight(dataToFcEvent, newEventId()),
     eventReceive: fullCalendarHandlers.onReceive,
     eventDragStart: fullCalendarHandlers.onDragStart,
     eventDragStop: fullCalendarHandlers.onDragStop,

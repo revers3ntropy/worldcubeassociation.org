@@ -3,8 +3,6 @@ import {
   roomWcifFromId,
   venueWcifFromRoomId,
 } from './wcif';
-import { newActivityId } from './edit-schedule';
-import { scheduleElementSelector } from '../helpers/edit-schedule';
 
 const tzConverterHandlers = {
 };
@@ -35,7 +33,7 @@ export function selectedEventInCalendar() {
 // as we propagate them all the time.
 // We must make sure the returned object contains at least:
 //   - id, title, start, end, activityCode, childActivities
-export function dataToFcEvent(data) {
+export function dataToFcEvent(data, nextId) {
   // Create a FullCalendar event from an activity
   // This copy only defined properties
   const eventData = _.pick(data, ['id', 'title', 'activityCode', 'childActivities', 'start', 'end', 'selected']);
@@ -44,7 +42,7 @@ export function dataToFcEvent(data) {
 
   // Generate a new activity id if needed
   if (!Object.prototype.hasOwnProperty.call(eventData, 'id')) {
-    eventData.id = newActivityId();
+    eventData.id = nextId;
   }
 
   if (!Object.prototype.hasOwnProperty.call(eventData, 'title')) {
