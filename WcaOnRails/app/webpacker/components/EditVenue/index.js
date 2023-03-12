@@ -160,7 +160,12 @@ function NameInput({ name, actionHandler }) {
         <span className="venue-form-label control-label">Name:</span>
       </Col>
       <Col xs={9}>
-        <input type="text" className="venue-name-input form-control" value={name} onChange={(e) => actionHandler(e, 'name')} />
+        <input
+          type="text"
+          className="venue-name-input form-control"
+          value={name}
+          onChange={(e) => actionHandler(e, 'name')}
+        />
       </Col>
     </Row>
   );

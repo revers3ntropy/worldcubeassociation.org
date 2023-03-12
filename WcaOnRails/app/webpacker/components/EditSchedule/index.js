@@ -13,8 +13,9 @@ import '../../stylesheets/semantic/components/icon.min.css';
 import '../../stylesheets/semantic/components/card.min.css';
 import '../../stylesheets/edit_schedule.scss';
 import { parseActivityCode, saveWcif } from '../../lib/utils/wcif';
-import { VenuesList } from './EditVenue';
+import { toMicrodegrees, VenuesList } from './EditVenue';
 import SchedulesEditor from './ScheduleEditor';
+import ErrorBoundary from '../ErrorBoundary';
 
 // eslint react/jsx-no-bind: "off"
 
@@ -26,12 +27,13 @@ export function defaultDurationFromActivityCode(activityCode) {
 }
 
 function newVenue(competitionInfo, id) {
+  console.log(competitionInfo);
   return {
     id,
     name: 'New Venue',
     countryIso2: competitionInfo.countryIso2,
-    latitudeMicrodegrees: competitionInfo.lat,
-    longitudeMicrodegrees: competitionInfo.lng,
+    latitudeMicrodegrees: toMicrodegrees(competitionInfo.lat),
+    longitudeMicrodegrees: toMicrodegrees(competitionInfo.lng),
     timezone: '',
     rooms: [],
   };
@@ -190,7 +192,7 @@ export default function EditSchedule({
           {
             menuItem: 'Edit venues information',
             render: () => (
-              <>
+              <ErrorBoundary>
                 <p>Please add all your venues and rooms below:</p>
                 <VenuesList
                   venues={scheduleWcif.venues}
@@ -199,16 +201,17 @@ export default function EditSchedule({
                   addVenue={addVenue}
                   competitionInfo={competitionInfoState}
                 />
-              </>
-
+              </ErrorBoundary>
             ),
           },
           {
             menuItem: 'Edit schedules',
             render: () => (
-              <SchedulesEditor
-                locale={locale}
-              />
+              <ErrorBoundary>
+                <SchedulesEditor
+                  locale={locale}
+                />
+              </ErrorBoundary>
             ),
           },
         ]}

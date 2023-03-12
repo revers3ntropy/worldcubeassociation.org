@@ -7,8 +7,24 @@
     justify-content: left;
     gap: 0.6em;
 
-    .card {
-      width: 400px !important;
+    @media (max-width: 768px) {
+      flex-direction: column;
+    }
+
+    .ui.card:first-child {
+      margin-top: 1em !important;
+    }
+
+    & > .card {
+      width: calc(50% - 6px) !important;
+
+      @media (max-width: 768px) {
+        width: 100% !important;
+      }
+
+      & > .card {
+        width: 100%;
+      }
     }
   }
 }
@@ -22,11 +38,13 @@
       justify-content: space-between;
       align-items: center;
     }
+
+    .ui.form {
+      margin: .7em;
+    }
   }
 
   .leaflet-container {
-    // full width - (border + padding)
-    width: calc(400px - 2em - 6px);
     height: 300px;
   }
 }
